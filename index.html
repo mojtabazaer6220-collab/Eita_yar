@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>برنامک ارسال به مخاطبین</title>
+    <title>ارسال به لیست مشترک</title>
     <script src="https://developer.eitaa.com/eitaa-web-app.js"></script>
     <style>
         body { font-family: Tahoma, Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
@@ -13,22 +13,26 @@
         #status { margin-top: 15px; padding: 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; text-align: center; font-size: 14px; display: none; }
         .error { background: #ffebee !important; color: #c62828 !important; }
         .success { background: #e8f5e9 !important; color: #2e7d32 !important; }
-        #userList { font-size: 12px; color: #555; margin-top: 10px; text-align: center; }
+        #userList { font-size: 13px; color: #555; margin-top: 15px; text-align: center; border-top: 1px solid #eee; padding-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h2>👋 سلام!</h2>
-    <p>در این صفحه، شناسه شما ذخیره می‌شود. با کلیک روی دکمه زیر، پیام تست به تمام افرادی که تا حالا وارد این برنامک شده‌اند ارسال می‌شود.</p>
+    <p>این برنامک در لیست مشترک ثبت‌نام می‌کند. با زدن دکمه، به تمام کاربران ثبت‌شده پیام می‌فرستد.</p>
     
     <button id="sendBtn" disabled>در حال اتصال...</button>
     <div id="status"></div>
     <div id="userList"></div>
 </div>
 
+<iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+
 <script>
-    // توکن برنامه
+    // ⚠️ آدرس سرویس چابکان شما
+    const BACKEND_URL = "https://express-wrsdx2.chbkn.dev"; 
+
     const APP_TOKEN = "60500502:GlgYvD]rx-KtJ(YW5Rq-FHSF8baO5-AI2%9Qn9J-!K!.[XPCZ-1bGP8a}dW-LAiIsc9J2-U0AU72nLM-ediE(z~WI-v8YO^T/S^-EQy,TwuTl-UcSZMryPs-)6j@B2qc[-DlY31D8ox-Nw1kfopwn-NyKxkozAX-?jBWP";
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
 
@@ -36,41 +40,47 @@
     const statusDiv = document.getElementById('status');
     const userListDiv = document.getElementById('userList');
 
-    // این تابع لیست کاربران ذخیره‌شده را از حافظه مرورگر می‌خواند
-    function getSavedUsers() {
-        const users = localStorage.getItem('eitaa_app_users');
-        return users ? JSON.parse(users) : [];
-    }
-
-    // این تابع شناسه کاربر جدید را به لیست اضافه می‌کند
-    function saveUser(userId) {
-        let users = getSavedUsers();
-        if (!users.includes(userId)) {
-            users.push(userId);
-            localStorage.setItem('eitaa_app_users', JSON.stringify(users));
-        }
-    }
-
     function showStatus(message, type = 'success') {
         statusDiv.textContent = message;
         statusDiv.className = type;
         statusDiv.style.display = 'block';
     }
 
-    function initApp() {
+    // خواندن لیست از سرویس چابکان
+    async function getUsers() {
+        try {
+            const res = await fetch(`${BACKEND_URL}/users`);
+            const data = await res.json();
+            return data.users || [];
+        } catch (e) {
+            console.error("خطا در خواندن:", e);
+            return [];
+        }
+    }
+
+    async function initApp() {
         if (typeof window.Eitaa === "undefined" || !window.Eitaa.WebApp) {
             showStatus("⚠️ لطفاً از داخل ایتا باز کنید.", "error");
             return;
         }
         const user = window.Eitaa.WebApp.initDataUnsafe?.user;
         if (user && user.id) {
-            // شناسه کاربر فعلی را در حافظه ذخیره می‌کنیم
-            saveUser(user.id);
+            showStatus("در حال ثبت‌نام...", "success");
             
-            const allUsers = getSavedUsers();
-            showStatus(`✅ متصل شدید. شناسه شما: ${user.id}`, "success");
-            userListDiv.innerHTML = `تعداد کل کاربران ثبت‌شده در این دستگاه: <b>${allUsers.length}</b> نفر`;
-            
+            // ثبت‌نام در سرویس چابکان
+            try {
+                await fetch(`${BACKEND_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                });
+            } catch (e) {
+                console.error("خطا در ثبت‌نام:", e);
+            }
+
+            const users = await getUsers();
+            showStatus(`✅ خوش آمدید! شناسه شما: ${user.id}`, "success");
+            userListDiv.innerHTML = `تعداد کل کاربران ثبت‌شده: <b>${users.length}</b> نفر`;
             sendBtn.textContent = "📨 ارسال پیام به همه";
             sendBtn.disabled = false;
         } else {
@@ -78,33 +88,27 @@
         }
     }
 
-    // تابع ارسال به چند نفر (با فرم مخفی)
     async function sendToAll() {
-        const users = getSavedUsers();
+        sendBtn.disabled = true;
+        showStatus("در حال دریافت لیست...", "success");
+
+        const users = await getUsers();
         if (users.length === 0) {
             showStatus("هیچ کاربری ثبت نشده است.", "error");
+            sendBtn.disabled = false;
             return;
         }
 
-        sendBtn.disabled = true;
-        showStatus(`در حال ارسال به ${users.length} کاربر... (لطفاً صبر کنید)`, "success");
+        showStatus(`در حال ارسال به ${users.length} کاربر...`, "success");
 
-        // برای جلوگیری از بلاک شدن توسط ایتا، بین هر ارسال ۲ ثانیه صبر می‌کنیم
         for (let i = 0; i < users.length; i++) {
             const chatId = users[i];
-            
-            // ساخت فرم مخفی برای هر کاربر
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = API_URL;
             form.target = 'hidden_iframe';
 
-            const data = {
-                token: APP_TOKEN,
-                chat_id: chatId,
-                text: "🎉 سلام! این یک پیام گروهی از برنامک تست است."
-            };
-
+            const data = { token: APP_TOKEN, chat_id: chatId, text: "🎉 سلام! این یک پیام گروهی از برنامک است." };
             for (const key in data) {
                 const input = document.createElement('input');
                 input.type = 'hidden';
@@ -115,21 +119,16 @@
 
             document.body.appendChild(form);
             form.submit();
-
-            // صبر کردن ۲ ثانیه قبل از ارسال به نفر بعدی (برای جلوگیری از خطای اسپم ایتا)
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 2000)); // ۲ ثانیه صبر
             form.remove();
         }
 
-        showStatus("✅ درخواست ارسال به همه کاربران انجام شد! صندوق پیام ایتا را چک کنید.", "success");
+        showStatus("✅ پیام‌ها به همه کاربران ارسال شد!", "success");
         sendBtn.disabled = false;
     }
 
     sendBtn.addEventListener('click', sendToAll);
     setTimeout(initApp, 500);
 </script>
-
-<iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-
 </body>
 </html>
