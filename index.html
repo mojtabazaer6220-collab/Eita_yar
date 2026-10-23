@@ -8,6 +8,7 @@
     <style>
         body { font-family: Tahoma, sans-serif; padding: 15px; background: #f5f5f5; margin: 0; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        .my-id-box { background: #e3f2fd; color: #1565c0; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; }
         input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
         button { background: #2e7d32; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%; margin-top: 5px; }
         button.remove { background: #c62828; width: auto; padding: 5px 10px; margin: 0; }
@@ -21,8 +22,10 @@
 <body>
 
 <div class="card">
-    <h3>👋 سلام!</h3>
-    <p style="font-size: 13px;">شناسه عددی (chat_id) دوستان خود را اینجا وارد کنید تا پیام برای همه آن‌ها ارسال شود.</p>
+    <!-- این بخش شناسه خود کاربر را نشان می‌دهد -->
+    <div class="my-id-box" id="myIdBox">در حال دریافت شناسه...</div>
+
+    <p style="font-size: 13px;">شناسه عددی دوستان خود را اینجا وارد کنید.</p>
     
     <input type="number" id="newId" placeholder="مثلاً: 2615096">
     <button onclick="addId()">➕ افزودن به لیست</button>
@@ -42,8 +45,17 @@
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
     const statusDiv = document.getElementById('status');
 
-    // گرفتن لیست از حافظه گوشی
     let savedIds = JSON.parse(localStorage.getItem('my_eitaa_ids') || '[]');
+
+    // دریافت و نمایش شناسه خود کاربر
+    setTimeout(() => {
+        if (window.Eitaa && window.Eitaa.WebApp && window.Eitaa.WebApp.initDataUnsafe?.user) {
+            const myId = window.Eitaa.WebApp.initDataUnsafe.user.id;
+            document.getElementById('myIdBox').innerText = `شناسه شما: ${myId} (این عدد را کپی کنید)`;
+        } else {
+            document.getElementById('myIdBox').innerText = "شناسه شما: (برای دیدن شناسه از داخل ایتا باز کنید)";
+        }
+    }, 500);
 
     function showStatus(msg, type) {
         statusDiv.textContent = msg;
@@ -51,7 +63,6 @@
         statusDiv.style.display = 'block';
     }
 
-    // نمایش لیست در صفحه
     function renderList() {
         const list = document.getElementById('idList');
         list.innerHTML = '';
@@ -88,7 +99,6 @@
         showStatus(`در حال ارسال به ${savedIds.length} نفر...`, "success");
 
         savedIds.forEach((chatId, index) => {
-            // برای جلوگیری از خطای اسپم، با تاخیر ارسال می‌کنیم
             setTimeout(() => {
                 const form = document.createElement('form');
                 form.method = 'POST';
@@ -106,7 +116,7 @@
                 document.body.appendChild(form);
                 form.submit();
                 form.remove();
-            }, index * 2000); // هر ۲ ثانیه یک نفر
+            }, index * 2000);
         });
 
         setTimeout(() => {
@@ -114,8 +124,7 @@
         }, savedIds.length * 2000);
     }
 
-    // اجرای اولیه
     renderList();
 </script>
 </body>
-    </html>
+</html>
