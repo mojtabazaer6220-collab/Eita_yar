@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>برنامک تست ایتا</title>
-    <!-- ۱. اتصال به کیت توسعه ایتا (حتماً قبل از هر اسکریپت دیگری) -->
+    <!-- ۱. اتصال به کیت توسعه ایتا -->
     <script src="https://developer.eitaa.com/eitaa-web-app.js"></script>
     <style>
-        body { font-family: Tahoma, sans-serif; padding: 20px; background: #f5f5f5; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-        button { background: #2e7d32; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 15px; }
-        button:disabled { background: #ccc; }
-        #status { margin-top: 15px; padding: 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; text-align: center; }
+        body { font-family: Tahoma, Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 20px auto; }
+        button { background: #2e7d32; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 15px; transition: background 0.3s; }
+        button:disabled { background: #a5d6a7; cursor: not-allowed; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; text-align: center; font-size: 14px; display: none; }
         .error { background: #ffebee !important; color: #c62828 !important; }
+        .success { background: #e8f5e9 !important; color: #2e7d32 !important; }
     </style>
 </head>
 <body>
@@ -26,88 +27,89 @@
 </div>
 
 <script>
-    // ۲. تنظیمات اصلی - توکن و اطلاعات خود را اینجا وارد کنید
-    const APP_TOKEN = "bot101498:18343d35-834b-477c-89cb-64fd61b93730"; // توکن برنامه خود را جایگزین کنید
+    // ۲. تنظیمات اصلی - توکن برنامه شما
+    const APP_TOKEN = "60500502:GlgYvD]rx-KtJ(YW5Rq-FHSF8baO5-AI2%9Qn9J-!K!.[XPCZ-1bGP8a}dW-LAiIsc9J2-U0AU72nLM-ediE(z~WI-v8YO^T/S^-EQy,TwuTl-UcSZMryPs-)6j@B2qc[-DlY31D8ox-Nw1kfopwn-NyKxkozAX-?jBWP";
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
 
     const sendBtn = document.getElementById('sendBtn');
     const statusDiv = document.getElementById('status');
 
-    let userId = null; // شناسه عددی کاربر در این متغیر ذخیره می‌شود
+    let userId = null;
 
-    // ۳. تابع برای نمایش وضعیت به کاربر
-    function showStatus(message, isError = false) {
+    function showStatus(message, type = 'success') {
         statusDiv.textContent = message;
-        statusDiv.className = isError ? 'error' : '';
+        statusDiv.className = type;
+        statusDiv.style.display = 'block';
     }
 
-    // ۴. بررسی اتصال به کیت توسعه ایتا و دریافت شناسه کاربر
     function initApp() {
-        // بررسی می‌کنیم که آیا کیت توسعه (SDK) ایتا در دسترس است یا خیر
         if (typeof window.Eitaa === "undefined" || !window.Eitaa.WebApp) {
-            showStatus("⚠️ کیت توسعه ایتا پیدا نشد. لطفاً این صفحه را از داخل ایتا باز کنید.", true);
+            showStatus("⚠️ کیت توسعه ایتا پیدا نشد. لطفاً این صفحه را از داخل ایتا باز کنید.", "error");
             sendBtn.textContent = "دسترسی به ایتا ندارید";
             return;
         }
 
         const webApp = window.Eitaa.WebApp;
-        const user = webApp.initDataUnsafe?.user; // دریافت اطلاعات کاربر
+        const user = webApp.initDataUnsafe?.user;
 
         if (user && user.id) {
             userId = user.id;
-            showStatus(`✅ به ایتا متصل شدید. شناسه شما: ${userId}`);
+            showStatus(`✅ به ایتا متصل شدید. شناسه شما: ${userId}`, "success");
             sendBtn.textContent = "📨 ارسال پیام تست";
             sendBtn.disabled = false;
         } else {
-            showStatus("⚠️ نتوانستیم شناسه کاربر را دریافت کنیم. ممکن است مجوزهای لازم را نداده باشید.", true);
+            showStatus("⚠️ نتوانستیم شناسه کاربر را دریافت کنیم. مجوزها را بررسی کنید.", "error");
             sendBtn.textContent = "خطا در دریافت اطلاعات";
         }
     }
 
-    // ۵. تابع اصلی برای ارسال پیام به API ایتا
     async function sendTestMessage() {
         if (!userId) {
-            showStatus("خطا: شناسه کاربر موجود نیست.", true);
+            showStatus("خطا: شناسه کاربر موجود نیست.", "error");
             return;
         }
 
         sendBtn.disabled = true;
         sendBtn.textContent = "در حال ارسال...";
-        showStatus("در حال ارسال پیام...");
+        showStatus("در حال ارسال پیام...", "success");
 
         try {
             const response = await fetch(API_URL, {
                 method: "POST",
+                mode: 'cors', // اضافه کردن حالت CORS برای جلوگیری از خطای شبکه
+                cache: 'no-cache',
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     token: APP_TOKEN,
-                    chat_id: userId, // شناسه عددی دریافت‌شده از SDK
+                    chat_id: userId,
                     text: "🎉 سلام! این یک پیام تست از برنامک شماست. اتصال با موفقیت انجام شد."
                 })
             });
 
+            // بررسی اینکه آیا سرور پاسخ داده است یا خیر
+            if (!response.ok) {
+                throw new Error(`خطای سرور: ${response.status}`);
+            }
+
             const result = await response.json();
 
             if (result.ok) {
-                showStatus("✅ پیام با موفقیت ارسال شد! حالا ایتا را چک کنید.");
+                showStatus("✅ پیام با موفقیت ارسال شد! حالا ایتا را چک کنید.", "success");
             } else {
-                showStatus(`❌ خطا در ارسال: ${result.description || "پاسخ نامعتبر از سرور"}`, true);
+                showStatus(`❌ خطا در ارسال: ${result.description || "پاسخ نامعتبر از سرور"}`, "error");
             }
         } catch (error) {
-            showStatus(`❌ خطای شبکه: ${error.message}`, true);
+            console.error("Fetch Error:", error); // برای مشاهده در کنسول
+            showStatus(`❌ خطای شبکه: ${error.message}`, "error");
         } finally {
             sendBtn.disabled = false;
             sendBtn.textContent = "📨 ارسال پیام تست";
         }
     }
 
-    // ۶. اجرای اولیه و اتصال دکمه
     sendBtn.addEventListener('click', sendTestMessage);
-    
-    // کمی صبر می‌کنیم تا کیت توسعه ایتا لود شود، سپس برنامه را مقداردهی اولیه می‌کنیم
     setTimeout(initApp, 500);
-
 </script>
 
 </body>
-  </html>
+</html>
