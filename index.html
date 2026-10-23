@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>برنامک تست ایتا</title>
-    <!-- ۱. اتصال به کیت توسعه ایتا -->
     <script src="https://developer.eitaa.com/eitaa-web-app.js"></script>
     <style>
         body { font-family: Tahoma, Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 20px auto; }
-        button { background: #2e7d32; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 15px; transition: background 0.3s; }
+        button { background: #2e7d32; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 15px; }
         button:disabled { background: #a5d6a7; cursor: not-allowed; }
         #status { margin-top: 15px; padding: 10px; border-radius: 6px; background: #e8f5e9; color: #2e7d32; text-align: center; font-size: 14px; display: none; }
         .error { background: #ffebee !important; color: #c62828 !important; }
@@ -27,13 +26,11 @@
 </div>
 
 <script>
-    // ۲. تنظیمات اصلی - توکن برنامه شما
     const APP_TOKEN = "60500502:GlgYvD]rx-KtJ(YW5Rq-FHSF8baO5-AI2%9Qn9J-!K!.[XPCZ-1bGP8a}dW-LAiIsc9J2-U0AU72nLM-ediE(z~WI-v8YO^T/S^-EQy,TwuTl-UcSZMryPs-)6j@B2qc[-DlY31D8ox-Nw1kfopwn-NyKxkozAX-?jBWP";
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
 
     const sendBtn = document.getElementById('sendBtn');
     const statusDiv = document.getElementById('status');
-
     let userId = null;
 
     function showStatus(message, type = 'success') {
@@ -44,72 +41,67 @@
 
     function initApp() {
         if (typeof window.Eitaa === "undefined" || !window.Eitaa.WebApp) {
-            showStatus("⚠️ کیت توسعه ایتا پیدا نشد. لطفاً این صفحه را از داخل ایتا باز کنید.", "error");
-            sendBtn.textContent = "دسترسی به ایتا ندارید";
+            showStatus("⚠️ کیت توسعه ایتا پیدا نشد. لطفاً از داخل ایتا باز کنید.", "error");
+            sendBtn.textContent = "دسترسی ندارید";
             return;
         }
-
-        const webApp = window.Eitaa.WebApp;
-        const user = webApp.initDataUnsafe?.user;
-
+        const user = window.Eitaa.WebApp.initDataUnsafe?.user;
         if (user && user.id) {
             userId = user.id;
-            showStatus(`✅ به ایتا متصل شدید. شناسه شما: ${userId}`, "success");
+            showStatus(`✅ متصل شدید. شناسه شما: ${userId}`, "success");
             sendBtn.textContent = "📨 ارسال پیام تست";
             sendBtn.disabled = false;
         } else {
-            showStatus("⚠️ نتوانستیم شناسه کاربر را دریافت کنیم. مجوزها را بررسی کنید.", "error");
-            sendBtn.textContent = "خطا در دریافت اطلاعات";
+            showStatus("⚠️ شناسه کاربر دریافت نشد.", "error");
         }
     }
 
-    async function sendTestMessage() {
-        if (!userId) {
-            showStatus("خطا: شناسه کاربر موجود نیست.", "error");
-            return;
-        }
+    // روش جدید ارسال با فرم به جای fetch
+    function sendTestMessage() {
+        if (!userId) return;
 
         sendBtn.disabled = true;
         sendBtn.textContent = "در حال ارسال...";
-        showStatus("در حال ارسال پیام...", "success");
+        showStatus("در حال ارسال پیام... (لطفاً صفحه را نبندید)", "success");
 
-        try {
-            const response = await fetch(API_URL, {
-                method: "POST",
-                mode: 'cors', // اضافه کردن حالت CORS برای جلوگیری از خطای شبکه
-                cache: 'no-cache',
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    token: APP_TOKEN,
-                    chat_id: userId,
-                    text: "🎉 سلام! این یک پیام تست از برنامک شماست. اتصال با موفقیت انجام شد."
-                })
-            });
+        // ساخت یک فرم مخفی برای ارسال درخواست
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = API_URL;
+        form.target = 'hidden_iframe'; // نتیجه به این آی‌فریم مخفی می‌رود تا صفحه عوض نشود
 
-            // بررسی اینکه آیا سرور پاسخ داده است یا خیر
-            if (!response.ok) {
-                throw new Error(`خطای سرور: ${response.status}`);
-            }
+        const data = {
+            token: APP_TOKEN,
+            chat_id: userId,
+            text: "🎉 سلام! این یک پیام تست از برنامک شماست. اتصال با موفقیت انجام شد."
+        };
 
-            const result = await response.json();
+        for (const key in data) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data[key];
+            form.appendChild(input);
+        }
 
-            if (result.ok) {
-                showStatus("✅ پیام با موفقیت ارسال شد! حالا ایتا را چک کنید.", "success");
-            } else {
-                showStatus(`❌ خطا در ارسال: ${result.description || "پاسخ نامعتبر از سرور"}`, "error");
-            }
-        } catch (error) {
-            console.error("Fetch Error:", error); // برای مشاهده در کنسول
-            showStatus(`❌ خطای شبکه: ${error.message}`, "error");
-        } finally {
+        document.body.appendChild(form);
+        form.submit();
+
+        // بعد از 3 ثانیه دکمه را فعال می‌کنیم (چون نمی‌توانیم جواب سرور را از آی‌فریم بخوانیم)
+        setTimeout(() => {
+            showStatus("✅ درخواست ارسال شد! اگر پیام را دریافت نکردید، ۲ دقیقه دیگر تلاش کنید.", "success");
             sendBtn.disabled = false;
             sendBtn.textContent = "📨 ارسال پیام تست";
-        }
+            form.remove();
+        }, 3000);
     }
 
     sendBtn.addEventListener('click', sendTestMessage);
     setTimeout(initApp, 500);
 </script>
+
+<!-- یک آی‌فریم مخفی برای دریافت پاسخ سرور -->
+<iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
 
 </body>
 </html>
