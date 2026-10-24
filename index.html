@@ -16,31 +16,36 @@
         #status { margin-top: 15px; padding: 12px; border-radius: 8px; text-align: center; font-size: 14px; display: none; }
         .success { background: #e8f5e9; color: #2e7d32; }
         .error { background: #ffebee; color: #c62828; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .welcome-box { background: #e3f2fd; color: #0d47a1; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; }
+        .admin-badge { background: #ffeb3b; color: #333; padding: 5px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
     </style>
 </head>
 <body>
 
-<!-- بخش ثبت‌نام کاربران -->
-<div class="card" id="registerCard">
+<!-- ۱. بخش کاربران عادی (ثبت‌نام) -->
+<div class="card hidden" id="userPanel">
     <h3>👋 خوش آمدید!</h3>
-    <p id="welcomeText" class="hidden"></p>
+    
     <div id="registerForm">
         <p>لطفاً برای دریافت پیام‌ها، نام خود را وارد کنید:</p>
         <input type="text" id="userName" placeholder="نام و نام خانوادگی...">
         <button id="registerBtn" onclick="registerUser()">📝 ثبت‌نام و ارسال به مدیر</button>
     </div>
+
+    <div id="welcomeBox" class="welcome-box hidden"></div>
 </div>
 
-<!-- بخش مدیریت (ارسال پیام به لیست) -->
-<div class="card">
-    <h3>👑 بخش مدیریت (فقط برای شما)</h3>
-    <p style="font-size: 13px; color: #666;">شناسه‌های عددی که در ایتا برایتان می‌آید را اینجا بنویسید و با علامت کاما (,) از هم جدا کنید.</p>
+<!-- ۲. بخش مدیریت (فقط برای شما) -->
+<div class="card hidden" id="adminPanel">
+    <span class="admin-badge">👑 شما به عنوان مدیر وارد شده‌اید</span>
+    <h3>ارسال پیام به کاربران</h3>
+    <p style="font-size: 13px; color: #666;">شناسه‌های عددی که در ایتا برایتان می‌آید را اینجا بنویسید (با کاما جدا کنید).</p>
     <textarea id="adminIdList" rows="3" placeholder="مثال: 2615096, 12345678, 98765432"></textarea>
-    <button class="admin-btn" onclick="sendToAll()">📨 ارسال پیام به این لیست</button>
+    <button class="admin-btn" onclick="sendToAll()">📨 ارسال پیام به لیست</button>
 </div>
 
+<!-- نمایش وضعیت -->
 <div id="status" style="max-width: 450px; margin: 0 auto;"></div>
 
 <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
@@ -48,7 +53,7 @@
 <script>
     // ⚠️ توکن برنامه و شناسه شما (مدیر)
     const APP_TOKEN = "60500502:GlgYvD]rx-KtJ(YW5Rq-FHSF8baO5-AI2%9Qn9J-!K!.[XPCZ-1bGP8a}dW-LAiIsc9J2-U0AU72nLM-ediE(z~WI-v8YO^T/S^-EQy,TwuTl-UcSZMryPs-)6j@B2qc[-DlY31D8ox-Nw1kfopwn-NyKxkozAX-?jBWP";
-    const ADMIN_CHAT_ID = 2615096; // پیام‌های ثبت‌نام برای شما ارسال می‌شود
+    const ADMIN_CHAT_ID = 2615096; // شناسه شما
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
 
     const statusDiv = document.getElementById('status');
@@ -61,25 +66,34 @@
         setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
     }
 
-    // ۱. راه‌اندازی اولیه: گرفتن شناسه و بررسی نام ذخیره‌شده
+    // راه‌اندازی اولیه: تشخیص مدیر از کاربر عادی
     setTimeout(() => {
         if (window.Eitaa && window.Eitaa.WebApp && window.Eitaa.WebApp.initDataUnsafe?.user) {
             currentUserId = window.Eitaa.WebApp.initDataUnsafe.user.id;
             
-            // بررسی اینکه آیا قبلاً نام خود را ذخیره کرده است یا نه
-            const savedName = localStorage.getItem('my_eitaa_name');
-            if (savedName) {
-                document.getElementById('registerForm').classList.add('hidden');
-                const welcome = document.getElementById('welcomeText');
-                welcome.classList.remove('hidden');
-                welcome.innerHTML = `✅ خوش آمدید، ${savedName}!<br><span style="font-size:12px; font-weight:normal;">شناسه شما: ${currentUserId}</span>`;
+            // آیا این شخص مدیر است؟ (شناسه‌اش با شناسه شما یکی است؟)
+            if (currentUserId === ADMIN_CHAT_ID) {
+                // نمایش پنل مدیر
+                document.getElementById('adminPanel').classList.remove('hidden');
+            } else {
+                // نمایش پنل کاربر
+                document.getElementById('userPanel').classList.remove('hidden');
+                
+                // اگر کاربر قبلاً اسمش را ذخیره کرده، پیام خوش‌آمدگویی نشان بده
+                const savedName = localStorage.getItem('my_eitaa_name');
+                if (savedName) {
+                    document.getElementById('registerForm').classList.add('hidden');
+                    const welcomeBox = document.getElementById('welcomeBox');
+                    welcomeBox.classList.remove('hidden');
+                    welcomeBox.innerHTML = `✅ خوش آمدید، ${savedName}!<br><span style="font-size:12px; font-weight:normal;">اطلاعات شما قبلاً ثبت شده است.</span>`;
+                }
             }
         } else {
             showStatus("⚠️ لطفاً این صفحه را از داخل ایتا باز کنید.", "error");
         }
     }, 500);
 
-    // ۲. تابع ثبت‌نام و ارسال به مدیر
+    // تابع ثبت‌نام (برای کاربران عادی)
     function registerUser() {
         const name = document.getElementById('userName').value.trim();
         
@@ -88,17 +102,17 @@
             return;
         }
         if (!currentUserId) {
-            showStatus("❌ خطا در دریافت شناسه ایتا. صفحه را ببندید و دوباره باز کنید.", "error");
+            showStatus("❌ خطا در دریافت شناسه. صفحه را ببندید و دوباره باز کنید.", "error");
             return;
         }
 
         document.getElementById('registerBtn').disabled = true;
         showStatus("⏳ در حال ثبت...", "success");
 
-        // ذخیره نام در حافظه گوشی
+        // ذخیره نام در حافظه گوشی کاربر
         localStorage.setItem('my_eitaa_name', name);
 
-        // ارسال نام و شناسه به شما (مدیر) با فرم مخفی
+        // ارسال نام و شناسه به مدیر (شما)
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = API_URL;
@@ -106,7 +120,7 @@
 
         const data = {
             token: APP_TOKEN,
-            chat_id: ADMIN_CHAT_ID,
+            chat_id: ADMIN_CHAT_ID, // ارسال به شما
             text: `🔔 ثبت‌نام جدید!\n\n👤 نام: ${name}\n🆔 شناسه: ${currentUserId}`
         };
 
@@ -122,17 +136,17 @@
         form.submit();
         setTimeout(() => form.remove(), 3000);
 
-        // تغییر ظاهر صفحه بعد از ثبت‌نام
+        // تغییر ظاهر صفحه برای کاربر
         setTimeout(() => {
             document.getElementById('registerForm').classList.add('hidden');
-            const welcome = document.getElementById('welcomeText');
-            welcome.classList.remove('hidden');
-            welcome.innerHTML = `✅ خوش آمدید، ${name}!<br><span style="font-size:12px; font-weight:normal;">اطلاعات شما برای مدیر ارسال شد.</span>`;
-            showStatus("✅ ثبت‌نام شما با موفقیت انجام شد!", "success");
+            const welcomeBox = document.getElementById('welcomeBox');
+            welcomeBox.classList.remove('hidden');
+            welcomeBox.innerHTML = `✅ خوش آمدید، ${name}!<br><span style="font-size:12px; font-weight:normal;">اطلاعات شما برای مدیر ارسال شد.</span>`;
+            showStatus("✅ ثبت‌نام با موفقیت انجام شد!", "success");
         }, 1500);
     }
 
-    // ۳. تابع ارسال پیام به لیست (برای مدیر)
+    // تابع ارسال پیام (فقط برای مدیر)
     function sendToAll() {
         const inputList = document.getElementById('adminIdList').value;
         if (!inputList.trim()) {
@@ -140,7 +154,6 @@
             return;
         }
 
-        // جدا کردن شناسه‌ها با کاما یا خط جدید
         const ids = inputList.split(/[\n,]+/).map(id => id.trim()).filter(id => id !== '');
         
         if (ids.length === 0) {
@@ -151,7 +164,6 @@
         showStatus(`⏳ در حال ارسال به ${ids.length} نفر...`, "success");
 
         ids.forEach((chatId, index) => {
-            // تاخیر ۲ ثانیه‌ای برای جلوگیری از مسدود شدن توسط ایتا
             setTimeout(() => {
                 const form = document.createElement('form');
                 form.method = 'POST';
@@ -178,7 +190,7 @@
         });
 
         setTimeout(() => {
-            showStatus(`✅ درخواست ارسال برای ${ids.length} نفر ثبت شد. پیام‌ها در حال ارسال هستند.`, "success");
+            showStatus(`✅ درخواست ارسال برای ${ids.length} نفر ثبت شد.`, "success");
         }, ids.length * 2000);
     }
 </script>
