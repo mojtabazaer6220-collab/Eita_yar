@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>برنامک ارسال پیام</title>
+    <title>ثبت‌نام در برنامک</title>
     <script src="https://developer.eitaa.com/eitaa-web-app.js"></script>
     <style>
         body { font-family: Tahoma, sans-serif; padding: 15px; background: #f5f5f5; margin: 0; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-        .my-id-box { background: #e3f2fd; color: #1565c0; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 15px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button { background: #2e7d32; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%; margin-top: 5px; }
-        button.remove { background: #c62828; width: auto; padding: 5px 10px; margin: 0; }
-        ul { list-style: none; padding: 0; }
-        li { background: #f0f0f0; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-        #status { margin-top: 15px; padding: 10px; border-radius: 6px; text-align: center; font-size: 13px; display: none; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 20px auto; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 16px; }
+        button { background: #2e7d32; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; transition: background 0.3s; }
+        button:disabled { background: #a5d6a7; cursor: not-allowed; }
+        #status { margin-top: 15px; padding: 12px; border-radius: 8px; text-align: center; font-size: 14px; display: none; line-height: 1.6; }
         .success { background: #e8f5e9; color: #2e7d32; }
         .error { background: #ffebee; color: #c62828; }
     </style>
@@ -22,109 +19,100 @@
 <body>
 
 <div class="card">
-    <!-- این بخش شناسه خود کاربر را نشان می‌دهد -->
-    <div class="my-id-box" id="myIdBox">در حال دریافت شناسه...</div>
-
-    <p style="font-size: 13px;">شناسه عددی دوستان خود را اینجا وارد کنید.</p>
+    <h2>👋 خوش آمدید!</h2>
+    <p>لطفاً برای عضویت در سیستم، نام خود را وارد کنید.</p>
     
-    <input type="number" id="newId" placeholder="مثلاً: 2615096">
-    <button onclick="addId()">➕ افزودن به لیست</button>
+    <input type="text" id="userName" placeholder="نام خود را بنویسید...">
+    <button id="registerBtn" onclick="registerUser()">📝 ثبت‌نام و ارسال به مدیر</button>
     
-    <ul id="idList"></ul>
-    
-    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-    
-    <button id="sendBtn" style="background: #1565c0;" onclick="sendToAll()">📨 ارسال پیام به همه</button>
     <div id="status"></div>
 </div>
 
 <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
 
 <script>
+    // توکن برنامه و شناسه شما (مدیر)
     const APP_TOKEN = "60500502:GlgYvD]rx-KtJ(YW5Rq-FHSF8baO5-AI2%9Qn9J-!K!.[XPCZ-1bGP8a}dW-LAiIsc9J2-U0AU72nLM-ediE(z~WI-v8YO^T/S^-EQy,TwuTl-UcSZMryPs-)6j@B2qc[-DlY31D8ox-Nw1kfopwn-NyKxkozAX-?jBWP";
+    const ADMIN_CHAT_ID = 2615096; // شناسه شما (پیام‌ها اینجا می‌آید)
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
+
     const statusDiv = document.getElementById('status');
+    const registerBtn = document.getElementById('registerBtn');
+    const userNameInput = document.getElementById('userName');
+    
+    let currentUserId = null;
 
-    let savedIds = JSON.parse(localStorage.getItem('my_eitaa_ids') || '[]');
-
-    // دریافت و نمایش شناسه خود کاربر
-    setTimeout(() => {
-        if (window.Eitaa && window.Eitaa.WebApp && window.Eitaa.WebApp.initDataUnsafe?.user) {
-            const myId = window.Eitaa.WebApp.initDataUnsafe.user.id;
-            document.getElementById('myIdBox').innerText = `شناسه شما: ${myId} (این عدد را کپی کنید)`;
-        } else {
-            document.getElementById('myIdBox').innerText = "شناسه شما: (برای دیدن شناسه از داخل ایتا باز کنید)";
-        }
-    }, 500);
-
-    function showStatus(msg, type) {
-        statusDiv.textContent = msg;
+    function showStatus(message, type = 'success') {
+        statusDiv.innerHTML = message;
         statusDiv.className = type;
         statusDiv.style.display = 'block';
     }
 
-    function renderList() {
-        const list = document.getElementById('idList');
-        list.innerHTML = '';
-        savedIds.forEach((id, index) => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span>${id}</span> <button class="remove" onclick="removeId(${index})">حذف</button>`;
-            list.appendChild(li);
-        });
-    }
-
-    function addId() {
-        const input = document.getElementById('newId');
-        const val = input.value.trim();
-        if (val && !savedIds.includes(Number(val))) {
-            savedIds.push(Number(val));
-            localStorage.setItem('my_eitaa_ids', JSON.stringify(savedIds));
-            input.value = '';
-            renderList();
+    // دریافت خودکار شناسه عددی کاربر از ایتا
+    setTimeout(() => {
+        if (window.Eitaa && window.Eitaa.WebApp && window.Eitaa.WebApp.initDataUnsafe?.user) {
+            currentUserId = window.Eitaa.WebApp.initDataUnsafe.user.id;
+        } else {
+            showStatus("⚠️ لطفاً این صفحه را از داخل ایتا باز کنید.", "error");
+            registerBtn.disabled = true;
         }
+    }, 500);
+
+    // تابعی که نام و شناسه را به شما می‌فرستد
+    function sendToAdmin(userName, userId) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = API_URL;
+        form.target = 'hidden_iframe';
+
+        // متن پیامی که برای شما ارسال می‌شود
+        const textMessage = `🔔 ثبت‌نام جدید در برنامک!\n\n👤 نام کاربر: ${userName}\n🆔 شناسه عددی: ${userId}`;
+
+        const data = {
+            token: APP_TOKEN,
+            chat_id: ADMIN_CHAT_ID, // ارسال به شما (2615096)
+            text: textMessage
+        };
+
+        for (const key in data) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data[key];
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+        
+        setTimeout(() => form.remove(), 3000);
     }
 
-    function removeId(index) {
-        savedIds.splice(index, 1);
-        localStorage.setItem('my_eitaa_ids', JSON.stringify(savedIds));
-        renderList();
-    }
-
-    function sendToAll() {
-        if (savedIds.length === 0) {
-            showStatus("لیست خالی است! ابتدا شناسه اضافه کنید.", "error");
+    function registerUser() {
+        const name = userNameInput.value.trim();
+        
+        if (!name) {
+            showStatus("❌ لطفاً نام خود را وارد کنید.", "error");
+            return;
+        }
+        if (!currentUserId) {
+            showStatus("❌ خطا در دریافت شناسه. لطفاً صفحه را ببندید و دوباره باز کنید.", "error");
             return;
         }
 
-        showStatus(`در حال ارسال به ${savedIds.length} نفر...`, "success");
+        registerBtn.disabled = true;
+        showStatus("⏳ در حال ارسال...", "success");
 
-        savedIds.forEach((chatId, index) => {
-            setTimeout(() => {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = API_URL;
-                form.target = 'hidden_iframe';
+        // ارسال نام و شناسه به شما
+        sendToAdmin(name, currentUserId);
 
-                const data = { token: APP_TOKEN, chat_id: chatId, text: "🎉 سلام! این یک پیام تست است." };
-                for (const key in data) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = data[key];
-                    form.appendChild(input);
-                }
-                document.body.appendChild(form);
-                form.submit();
-                form.remove();
-            }, index * 2000);
-        });
-
+        // پیامی که به خود کاربر نشان داده می‌شود
         setTimeout(() => {
-            showStatus("✅ درخواست ارسال برای همه انجام شد!", "success");
-        }, savedIds.length * 2000);
+            showStatus(`✅ ${name} عزیز، ثبت‌نام شما انجام شد!<br>نام و شناسه شما برای مدیر سیستم ارسال شد.`, "success");
+            userNameInput.value = '';
+            registerBtn.innerText = "✅ ثبت‌نام شد";
+        }, 2000);
     }
-
-    renderList();
 </script>
 </body>
 </html>
