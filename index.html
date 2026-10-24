@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل ارسال پیام ایتا</title>
+    <title>سیستم مدیریت برنامک ایتا</title>
     <script src="https://developer.eitaa.com/eitaa-web-app.js"></script>
     <style>
         body { font-family: Tahoma, Arial, sans-serif; padding: 15px; background: #f5f5f5; margin: 0; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 15px auto; }
         h3 { margin-top: 0; color: #333; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
         textarea { width: 100%; height: 120px; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-family: monospace; font-size: 13px; direction: ltr; }
         input[type="file"] { display: none; }
         button { background: #2e7d32; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 15px; cursor: pointer; width: 100%; margin-top: 5px; transition: background 0.3s; }
@@ -19,25 +20,34 @@
         .success { background: #e8f5e9; color: #2e7d32; }
         .error { background: #ffebee; color: #c62828; }
         .hidden { display: none !important; }
+        .welcome-box { background: #e3f2fd; color: #0d47a1; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-top: 15px; }
         .admin-badge { background: #ffeb3b; color: #333; padding: 5px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; display: inline-block; text-align: center; width: 100%; box-sizing: border-box; }
         .help-text { font-size: 12px; color: #666; margin-bottom: 10px; line-height: 1.5; }
     </style>
 </head>
 <body>
 
-<!-- پنل مدیریت (تنها بخش برنامه) -->
+<!-- ================= پنل کاربران عادی ================= -->
+<div class="card hidden" id="userPanel">
+    <h3>👋 خوش آمدید!</h3>
+    <div id="registerForm">
+        <p style="text-align: center; font-size: 14px;">لطفاً برای دریافت پیام‌ها، نام خود را وارد کنید:</p>
+        <input type="text" id="userName" placeholder="نام و نام خانوادگی...">
+        <button id="registerBtn" onclick="registerUser()">📝 ثبت‌نام</button>
+    </div>
+    <div id="welcomeBox" class="welcome-box hidden"></div>
+</div>
+
+<!-- ================= پنل مدیریت ================= -->
 <div class="card hidden" id="adminPanel">
     <div class="admin-badge">👑 پنل مدیریت ارسال پیام</div>
     
     <div class="help-text">
-        لیست مخاطبین خود را به یکی از دو روش زیر وارد کنید:
-        <br>۱. در کادر پایین به صورت <b>شناسه,نام</b> (هر نفر در یک خط).
-        <br>۲. یا یک فایل <b>CSV</b> (خروجی اکسل) آپلود کنید که ستون اول شناسه و ستون دوم نام باشد.
+        لیست مخاطبین را به صورت <b>شناسه,نام</b> (هر نفر در یک خط) وارد کنید، یا فایل اکسل (CSV) آپلود کنید.
     </div>
 
     <textarea id="contactsInput" placeholder="مثال:&#10;2615096,مجتبی&#10;12345678,علی"></textarea>
     
-    <!-- دکمه آپلود اکسل -->
     <input type="file" id="fileInput" accept=".csv" onchange="handleFileUpload(event)">
     <button class="file-btn" onclick="document.getElementById('fileInput').click()">📁 انتخاب فایل اکسل (CSV)</button>
     
@@ -53,6 +63,7 @@
     const API_URL = "https://eitaayar.ir/api/app/sendMessage";
 
     const statusDiv = document.getElementById('status');
+    let currentUserId = null;
 
     function showStatus(message, type = 'success') {
         statusDiv.innerHTML = message;
@@ -61,20 +72,71 @@
         setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
     }
 
-    // بررسی اینکه فقط مدیر وارد شود
+    // راه‌اندازی اولیه: تشخیص مدیر و کاربر
     setTimeout(() => {
         if (window.Eitaa && window.Eitaa.WebApp && window.Eitaa.WebApp.initDataUnsafe?.user) {
-            const currentUserId = window.Eitaa.WebApp.initDataUnsafe.user.id;
+            currentUserId = window.Eitaa.WebApp.initDataUnsafe.user.id;
+            
             if (currentUserId === ADMIN_CHAT_ID) {
+                // اگر مدیر بود، پنل مدیریت را نشان بده
                 document.getElementById('adminPanel').classList.remove('hidden');
             } else {
-                // اگر کسی غیر از مدیر وارد شد
-                document.body.innerHTML = "<div style='text-align:center; margin-top:50px; font-family:Tahoma;'><h3>⛔ دسترسی غیرمجاز</h3><p>شما اجازه دسترسی به این صفحه را ندارید.</p></div>";
+                // اگر کاربر عادی بود، پنل ثبت‌نام را نشان بده
+                document.getElementById('userPanel').classList.remove('hidden');
+                
+                const savedName = localStorage.getItem('my_eitaa_name');
+                if (savedName) {
+                    document.getElementById('registerForm').classList.add('hidden');
+                    const wb = document.getElementById('welcomeBox');
+                    wb.classList.remove('hidden');
+                    wb.innerHTML = `✅ خوش آمدید، ${savedName}!`;
+                }
             }
+        } else {
+            showStatus("⚠️ لطفاً این صفحه را از داخل ایتا باز کنید.", "error");
         }
     }, 500);
 
-    // تابع خواندن فایل اکسل (CSV)
+    // ================= ثبت‌نام کاربر عادی =================
+    function registerUser() {
+        const name = document.getElementById('userName').value.trim();
+        if (!name) return showStatus("❌ لطفاً نام خود را وارد کنید.", "error");
+
+        document.getElementById('registerBtn').disabled = true;
+        showStatus("⏳ در حال ثبت...", "success");
+
+        localStorage.setItem('my_eitaa_name', name);
+
+        // ⚠️ اینجا فرمت پیام دقیقاً به صورت شناسه,نام تنظیم شده است
+        const form = document.createElement('form');
+        form.method = 'POST'; form.action = API_URL; form.target = 'hidden_iframe';
+        
+        const data = { 
+            token: APP_TOKEN, 
+            chat_id: ADMIN_CHAT_ID, 
+            text: `${currentUserId},${name}` 
+        };
+        
+        for (const key in data) { 
+            const input = document.createElement('input'); 
+            input.type = 'hidden'; 
+            input.name = key; 
+            input.value = data[key]; 
+            form.appendChild(input); 
+        }
+        document.body.appendChild(form); 
+        form.submit(); 
+        setTimeout(() => form.remove(), 3000);
+
+        // تغییر ظاهر صفحه برای کاربر
+        document.getElementById('registerForm').classList.add('hidden');
+        const wb = document.getElementById('welcomeBox');
+        wb.classList.remove('hidden');
+        wb.innerHTML = `✅ خوش آمدید، ${name}!`;
+        showStatus("✅ ثبت‌نام با موفقیت انجام شد!", "success");
+    }
+
+    // ================= توابع مدیر =================
     function handleFileUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -88,7 +150,6 @@
         reader.readAsText(file, "UTF-8");
     }
 
-    // تابع ارسال پیام
     function sendToAll() {
         const rawInput = document.getElementById('contactsInput').value.trim();
         
@@ -96,7 +157,6 @@
             return showStatus("❌ کادر لیست خالی است. لطفاً مخاطبین را وارد کنید.", "error");
         }
 
-        // پردازش لیست (جدا کردن با خط جدید)
         const lines = rawInput.split('\n');
         let contacts = [];
 
@@ -109,26 +169,24 @@
                     contacts.push({ id: Number(id), name: name });
                 }
             } else if (parts.length === 1 && !isNaN(parts[0].trim()) && parts[0].trim() !== '') {
-                // اگر فقط شناسه بود بدون نام
                 contacts.push({ id: Number(parts[0].trim()), name: 'کاربر' });
             }
         });
 
         if (contacts.length === 0) {
-            return showStatus("❌ هیچ شناسه معتبری پیدا نشد. لطفاً فرمت را بررسی کنید.", "error");
+            return showStatus("❌ هیچ شناسه معتبری پیدا نشد. فرمت باید شناسه,نام باشد.", "error");
         }
 
         showStatus(`⏳ در حال ارسال به ${contacts.length} نفر... (لطفاً صفحه را نبندید)`, "success");
 
         contacts.forEach((contact, index) => {
-            // تاخیر ۲ ثانیه‌ای برای جلوگیری از مسدود شدن توسط ایتا
             setTimeout(() => {
                 const form = document.createElement('form');
                 form.method = 'POST'; form.action = API_URL; form.target = 'hidden_iframe';
                 const data = { 
                     token: APP_TOKEN, 
                     chat_id: contact.id, 
-                    text: `📢 پیام از طرف مدیریت:\nسلام ${contact.name} عزیز! این یک پیام تستی است.` 
+                    text: `📢 سلام ${contact.name} عزیز! این یک پیام تستی است.` 
                 };
                 for (const key in data) { 
                     const input = document.createElement('input'); 
